@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import type { Recipe } from "@/lib/types";
-import { ingredientParts, isPeopleUnit, scaleIngredient, scaleStepText } from "@/lib/scale";
+import { ingredientParts, isPeopleUnit, scaleIngredient } from "@/lib/scale";
+import { StepText } from "./StepText";
+import { CookMode } from "./CookMode";
 import { usePreferredServings } from "@/lib/preferences";
 import { ServingsStepper } from "./ServingsStepper";
 
@@ -31,13 +33,6 @@ export function RecipeView({ recipe: r }: { recipe: Recipe }) {
   const factor = r.servings && servings ? servings / r.servings : 1;
   const unit = r.servings_unit || "personnes";
 
-  // Mode cuisine : l'écran du téléphone ne se met pas en veille
-  useEffect(() => {
-    if (!cooking || !("wakeLock" in navigator)) return;
-    let lock: WakeLockSentinel | null = null;
-    navigator.wakeLock.request("screen").then((l) => (lock = l)).catch(() => {});
-    return () => { lock?.release(); };
-  }, [cooking]);
 
   const toggle = (s: Set<number>, set: (v: Set<number>) => void, i: number) => {
     const n = new Set(s);
@@ -107,9 +102,7 @@ export function RecipeView({ recipe: r }: { recipe: Recipe }) {
       <section>
         <div className="flex items-center justify-between">
           <h2 className="titre text-xl font-semibold">Préparation</h2>
-          <button className={`btn py-1.5 text-sm ${cooking ? "bg-basilic text-white" : "btn-secondaire"}`} onClick={() => setCooking(!cooking)}>
-            {cooking ? "🔆 Écran allumé" : "👩‍🍳 Mode cuisine"}
-          </button>
+          <button className="btn-primaire py-1.5 text-sm" onClick={() => setCooking(true)}>👩‍🍳 Mode cuisine</button>
         </div>
         {groupBy(r.steps).map((g, gi) => (
           <div key={gi} className="mt-3">
@@ -117,21 +110,25 @@ export function RecipeView({ recipe: r }: { recipe: Recipe }) {
             <ol className="space-y-3">
               {g.items.map(({ item: s, index }) => (
                 <li key={index}>
-                  <button onClick={() => toggle(done, setDone, index)}
-                    className={`flex w-full gap-3 text-left ${cooking ? "text-lg" : ""} ${done.has(index) ? "opacity-45" : ""}`}>
+                  <div role="button" tabIndex={0} onClick={() => toggle(done, setDone, index)}
+                    onKeyDown={(e) => { if (e.key === "Enter") toggle(done, setDone, index); }}
+                    className={`flex w-full cursor-pointer gap-3 text-left ${done.has(index) ? "opacity-45" : ""}`}>
                     <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${done.has(index) ? "bg-basilic text-white" : "bg-tomate text-sur-tomate"}`}>
                       {done.has(index) ? "✓" : index + 1}
                     </span>
                     <span className="leading-relaxed">
-                      {scaleStepText(s.text, factor).map((part, k) =>
-                        part.scaled ? <strong key={k} className="text-tomate">{part.text}</strong> : <span key={k}>{part.text}</span>)}
+                      <StepText text={s.text} factor={factor} label={`${r.title} — étape ${index + 1}`} />
                     </span>
-                  </button>
+                  </div>
                 </li>
               ))}
             </ol>
           </div>
         ))}
+        {cooking && (
+          <CookMode recipe={r} factor={factor} onClose={() => setCooking(false)}
+            servingsLabel={r.servings ? `${servings} ${unit}` : null} />
+        )}
         {r.tips && (
           <aside className="carte mt-6 bg-creme p-4">
             <h3 className="font-semibold">💡 Astuces</h3>

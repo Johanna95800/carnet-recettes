@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getSession } from "@/lib/supabase/server";
 import { BottomNav } from "@/components/BottomNav";
+import { TimerProvider } from "@/components/Timers";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, family } = await getSession();
@@ -10,9 +11,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!family && !path.startsWith("/famille")) redirect("/famille");
 
   return (
+    <TimerProvider>
     <div className="mx-auto min-h-dvh max-w-3xl pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-10">
       {children}
       {family && <BottomNav />}
     </div>
+    </TimerProvider>
   );
 }
