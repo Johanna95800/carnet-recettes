@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/supabase/server";
 import { FamilySetup } from "@/components/FamilySetup";
 import { InviteCard, SignOutButton } from "@/components/FamilyActions";
+import { PreferredServings } from "@/components/PreferredServings";
 
 export default async function Famille() {
   const { supabase, user, family } = await getSession();
@@ -26,6 +27,7 @@ export default async function Famille() {
         <h1 className="titre text-3xl font-semibold">{family.name}</h1>
         <p className="text-encre-douce">{count ?? 0} recette{(count ?? 0) > 1 ? "s" : ""} dans le carnet</p>
       </header>
+      <PreferredServings />
       <InviteCard code={family.invite_code} familyName={family.name} />
       <section className="carte p-5">
         <h2 className="font-semibold">Membres</h2>
