@@ -103,10 +103,16 @@ export function RecipeForm({ initial, familyId, recipeId, onCancel }: Props) {
       ingredients: d.ingredients.filter((i) => i.name.trim()),
       steps: d.steps.filter((s) => s.text.trim()),
     };
-    const res = recipeId
-      ? await supabase.from("recipes").update(payload).eq("id", recipeId).select("id").single()
-      : await supabase.from("recipes").insert({ ...payload, family_id: familyId,
-          created_by: (await supabase.auth.getUser()).data.user?.id }).select("id").single();
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+    const write = (p: Partial<RecipeDraft>) => recipeId
+      ? supabase.from("recipes").update(p).eq("id", recipeId).select("id").single()
+      : supabase.from("recipes").insert({ ...p, family_id: familyId, created_by: userId }).select("id").single();
+    let res = await write(payload);
+    // base pas encore migrée (colonne rest_label absente) : on enregistre sans ce champ
+    if (res.error && res.error.message.includes("rest_label")) {
+      const { rest_label: _ignored, ...withoutLabel } = payload;
+      res = await write(withoutLabel);
+    }
     if (res.error) { setError(res.error.message); setBusy(false); return; }
     const unused = [...initial.photos, ...sessionUploads.current].filter((p) => !d.photos.includes(p));
     if (unused.length) await supabase.storage.from(BUCKET).remove(unused);

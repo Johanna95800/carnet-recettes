@@ -10,7 +10,7 @@ export default async function Accueil({ searchParams }: { searchParams: Promise<
   const { supabase, family } = await getSession();
   const { data } = await supabase
     .from("recipes")
-    .select("id, title, category, difficulty, prep_minutes, cook_minutes, rest_minutes, rest_label, tags, photos, ingredients, created_at")
+    .select("*")
     .eq("family_id", family!.id)
     .order("created_at", { ascending: false });
   const recipes = (data ?? []) as Pick<Recipe, "id" | "title" | "category" | "difficulty" | "prep_minutes" | "cook_minutes" | "rest_minutes" | "rest_label" | "tags" | "photos" | "ingredients" | "created_at">[];
