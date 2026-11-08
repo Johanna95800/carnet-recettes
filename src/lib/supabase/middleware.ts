@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/connexion", "/auth", "/manifest.webmanifest", "/icon", "/apple-icon"];
+const PUBLIC_PATHS = ["/p/", "/connexion", "/auth", "/manifest.webmanifest", "/icon", "/apple-icon"];
 
 export async function updateSession(request: NextRequest) {
   request.headers.set("x-pathname", request.nextUrl.pathname);

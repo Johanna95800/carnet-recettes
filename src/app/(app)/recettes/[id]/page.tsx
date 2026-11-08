@@ -36,7 +36,7 @@ export default async function RecettePage({ params }: { params: Promise<{ id: st
       <div className="px-4 pt-4">
         <div className="flex items-center justify-between">
           <Link href="/" className="text-sm text-encre-douce">← Recettes</Link>
-          <RecipeActions id={r.id} title={r.title} photos={r.photos} />
+          <RecipeActions id={r.id} title={r.title} photos={r.photos} shareToken={r.share_token ?? null} />
         </div>
         <p className="etiquette mt-3">{cat.emoji} {cat.label}</p>
         <h1 className="titre text-3xl font-semibold leading-tight">{r.title}</h1>

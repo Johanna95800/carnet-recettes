@@ -3,14 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { ShareMenu } from "./ShareMenu";
 
-export function RecipeActions({ id, title, photos }: { id: string; title: string; photos: string[] }) {
+export function RecipeActions({ id, title, photos, shareToken }: { id: string; title: string; photos: string[]; shareToken: string | null }) {
   const router = useRouter();
-  async function share() {
-    const url = location.href;
-    if (navigator.share) { try { await navigator.share({ title, url }); } catch { /* annulé */ } }
-    else { await navigator.clipboard.writeText(url); alert("Lien copié !"); }
-  }
   async function remove() {
     if (!confirm(`Supprimer « ${title} » du carnet ?`)) return;
     const supabase = createClient();
@@ -22,7 +18,7 @@ export function RecipeActions({ id, title, photos }: { id: string; title: string
   }
   return (
     <div className="flex gap-1 text-sm">
-      <button className="rounded-lg px-2.5 py-1.5 hover:bg-papier" onClick={share}>Partager</button>
+      <ShareMenu id={id} title={title} shareToken={shareToken} />
       <Link className="rounded-lg px-2.5 py-1.5 hover:bg-papier" href={`/recettes/${id}/modifier`}>Modifier</Link>
       <button className="rounded-lg px-2.5 py-1.5 text-tomate hover:bg-papier" onClick={remove}>Supprimer</button>
     </div>

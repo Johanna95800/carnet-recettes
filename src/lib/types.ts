@@ -97,6 +97,7 @@ export interface Recipe {
   source_type: SourceType | null;
   source_url: string | null;
   source_label: string | null;
+  share_token?: string | null;
   created_at: string;
   updated_at: string;
 }
