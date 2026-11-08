@@ -7,17 +7,24 @@ import { RecipeView } from "@/components/RecipeView";
 import { RecipeActions } from "@/components/RecipeActions";
 import { PhotoGallery } from "@/components/PhotoGallery";
 import { durationItems } from "@/components/Durations";
+import { RecipeMarks } from "@/components/RecipeMarks";
+import { summarize, type MarkRow } from "@/lib/marks";
 
 export default async function RecettePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { supabase } = await getSession();
+  const { supabase, user } = await getSession();
   const { data } = await supabase.from("recipes").select("*").eq("id", id).maybeSingle();
   if (!data) notFound();
   const r = data as Recipe;
   const urls = await signPhotos(supabase, r.photos);
-  const { data: author } = r.created_by
-    ? await supabase.from("family_members").select("display_name").eq("user_id", r.created_by).eq("family_id", r.family_id).maybeSingle()
-    : { data: null };
+  const [{ data: members }, { data: marks }] = await Promise.all([
+    supabase.from("family_members").select("user_id, display_name").eq("family_id", r.family_id),
+    supabase.from("recipe_marks").select("recipe_id, user_id, favorite, cooked, rating").eq("recipe_id", r.id),
+  ]);
+  const names: Record<string, string> = Object.fromEntries((members ?? []).map((m) => [m.user_id, m.display_name || "Sans nom"]));
+  const author = r.created_by ? { display_name: names[r.created_by] } : null;
+  const markRows = (marks ?? []) as MarkRow[];
+  const mineRow = markRows.find((m) => m.user_id === user!.id);
   const cat = categoryLabel(r.category);
   const total = (r.prep_minutes ?? 0) + (r.cook_minutes ?? 0) + (r.rest_minutes ?? 0);
 
@@ -42,6 +49,8 @@ export default async function RecettePage({ params }: { params: Promise<{ id: st
             ))}
           </ul>
         )}
+        <RecipeMarks recipeId={r.id} summary={summarize(markRows, names)}
+          mine={{ favorite: mineRow?.favorite ?? false, cooked: mineRow?.cooked ?? false, rating: mineRow?.rating ?? null }} />
         {r.description && <p className="mt-3 text-encre-douce">{r.description}</p>}
 
         <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
