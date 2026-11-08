@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { resizeImage } from "@/lib/image-client";
 import { PhotoEditor } from "./PhotoEditor";
 import { TagInput } from "./TagInput";
+import { findDuplicates, type Existing } from "@/lib/duplicates";
 import { CATEGORIES, DIFFICULTIES, REST_LABELS, formatMinutes, parseDuration, type Ingredient, type RecipeDraft } from "@/lib/types";
 
 const BUCKET = "recipe-photos";
@@ -93,9 +94,25 @@ export function RecipeForm({ initial, familyId, recipeId, onCancel }: Props) {
     set("ingredients", d.ingredients.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   }
 
-  async function save(e: React.FormEvent) {
-    e.preventDefault();
+  // Doublons possibles (uniquement pour une nouvelle recette)
+  const [existing, setExisting] = useState<Existing[]>([]);
+  const [dupConfirmed, setDupConfirmed] = useState(false);
+  useEffect(() => {
+    if (recipeId) return;
+    supabase.from("recipes").select("id, title, source_url").eq("family_id", familyId)
+      .then(({ data }) => setExisting((data ?? []) as Existing[]));
+  }, [recipeId, familyId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dupes = recipeId || !d.title.trim() ? [] : findDuplicates(d.title, d.source_url, existing);
+  const dupRef = useRef<HTMLDivElement>(null);
+
+  async function save(e?: React.FormEvent) {
+    e?.preventDefault();
     if (!d.title.trim()) { setError("Donnez un titre à la recette."); return; }
+    if (dupes.length && !dupConfirmed) {
+      dupRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      dupRef.current?.classList.add("ring-2", "ring-tomate");
+      return;
+    }
     setBusy(true); setError(null);
     const payload = {
       ...d,
@@ -122,6 +139,22 @@ export function RecipeForm({ initial, familyId, recipeId, onCancel }: Props) {
 
   return (
     <form onSubmit={save} className="space-y-5">
+      {dupes.length > 0 && !dupConfirmed && (
+        <div ref={dupRef} className="carte space-y-2 border-amber-400 bg-amber-50 p-4 text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
+          <p className="font-semibold">⚠️ Cette recette existe peut-être déjà</p>
+          <ul className="space-y-1 text-sm">
+            {dupes.map((x) => (
+              <li key={x.id}>• <a href={`/recettes/${x.id}`} target="_blank" rel="noopener" className="underline">{x.title}</a></li>
+            ))}
+          </ul>
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button type="button" className="btn-secondaire py-1.5 text-sm" onClick={() => { setDupConfirmed(true); }}>
+              Ce n&apos;est pas la même, continuer
+            </button>
+            {onCancel && <button type="button" className="btn-secondaire py-1.5 text-sm" onClick={cancel}>Ne pas l&apos;ajouter</button>}
+          </div>
+        </div>
+      )}
       {/* Photos */}
       <section className="carte p-4">
         <div className="flex items-center justify-between">
