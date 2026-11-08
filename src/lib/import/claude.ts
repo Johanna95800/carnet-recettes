@@ -52,7 +52,8 @@ async function run(content: Anthropic.Beta.BetaContentBlockParam[]): Promise<Ext
       throw new ExtractionError("Trop de demandes en ce moment, réessayez dans une minute.");
     }
     if (err instanceof Anthropic.APIError) {
-      throw new ExtractionError(`Erreur du service d'IA (${err.status ?? "réseau"}). Réessayez.`);
+      console.error("Anthropic API", err.status, err.message);
+      throw new ExtractionError(explainApiError(err));
     }
     throw err;
   }
@@ -168,4 +169,26 @@ Sois précis au pixel près : regarde où se trouvent réellement les bords.`,
   });
   if (response.stop_reason !== "end_turn" || !response.parsed_output) return [];
   return response.parsed_output.images;
+}
+
+/** Traduit les erreurs de l'API Anthropic en message compréhensible. */
+function explainApiError(err: InstanceType<typeof Anthropic.APIError>) {
+  const raw = err.message ?? "";
+  const lower = ((err.error as { error?: { message?: string } } | undefined)?.error?.message ?? raw).toLowerCase();
+  if (lower.includes("credit balance")) {
+    return "Crédit Anthropic épuisé : rechargez-le sur platform.claude.com (Settings → Billing), puis réessayez.";
+  }
+  if (lower.includes("spend limit") || lower.includes("usage limit")) {
+    return "Limite de dépense Anthropic atteinte : augmentez-la sur platform.claude.com (Settings → Limits).";
+  }
+  if (lower.includes("image") && (lower.includes("exceed") || lower.includes("too large") || lower.includes("size"))) {
+    return "Photo trop lourde pour l'analyse. Réessayez avec une photo moins grande.";
+  }
+  if (err.status === 529 || err.status === 503 || (err.status ?? 0) >= 500) {
+    return "Le service d'IA est momentanément surchargé. Réessayez dans quelques minutes.";
+  }
+  // détail renvoyé par l'API, pour pouvoir diagnostiquer
+  const body = err.error as { error?: { message?: string } } | undefined;
+  const detail = (body?.error?.message ?? raw).slice(0, 300);
+  return `Erreur du service d'IA (${err.status ?? "réseau"}) : ${detail || "réessayez."}`;
 }
