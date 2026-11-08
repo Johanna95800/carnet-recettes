@@ -8,6 +8,7 @@ import { RecipeActions } from "@/components/RecipeActions";
 import { PhotoGallery } from "@/components/PhotoGallery";
 import { durationItems } from "@/components/Durations";
 import { RecipeMarks } from "@/components/RecipeMarks";
+import { RecipeComments } from "@/components/RecipeComments";
 import { summarize, type MarkRow } from "@/lib/marks";
 
 export default async function RecettePage({ params }: { params: Promise<{ id: string }> }) {
@@ -17,9 +18,10 @@ export default async function RecettePage({ params }: { params: Promise<{ id: st
   if (!data) notFound();
   const r = data as Recipe;
   const urls = await signPhotos(supabase, r.photos);
-  const [{ data: members }, { data: marks }] = await Promise.all([
+  const [{ data: members }, { data: marks }, { data: comments }] = await Promise.all([
     supabase.from("family_members").select("user_id, display_name").eq("family_id", r.family_id),
     supabase.from("recipe_marks").select("recipe_id, user_id, favorite, cooked, rating").eq("recipe_id", r.id),
+    supabase.from("recipe_comments").select("id, user_id, body, created_at").eq("recipe_id", r.id).order("created_at"),
   ]);
   const names: Record<string, string> = Object.fromEntries((members ?? []).map((m) => [m.user_id, m.display_name || "Sans nom"]));
   const author = r.created_by ? { display_name: names[r.created_by] } : null;
@@ -72,6 +74,11 @@ export default async function RecettePage({ params }: { params: Promise<{ id: st
         )}
 
         <RecipeView recipe={r} />
+
+        <RecipeComments recipeId={r.id} comments={(comments ?? []).map((c) => ({
+          id: c.id, body: c.body, created_at: c.created_at,
+          author: (c.user_id && names[c.user_id]) || "Ancien membre", mine: c.user_id === user!.id,
+        }))} />
 
         <footer className="mt-8 space-y-1 border-t border-trait pt-4 text-sm text-encre-douce">
           {(r.source_label || r.source_url) && (
