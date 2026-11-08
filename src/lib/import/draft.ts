@@ -1,3 +1,4 @@
+import { mergeTags } from "@/lib/tags";
 import type { ExtractedRecipe, RecipeDraft, SourceType } from "@/lib/types";
 
 export function toDraft(
@@ -21,7 +22,7 @@ export function toDraft(
     steps: r.steps,
     utensils: r.utensils,
     tips: r.tips,
-    tags: r.tags,
+    tags: mergeTags(r.tags),
     photos,
     source_type: source.type,
     source_url: source.url ?? null,

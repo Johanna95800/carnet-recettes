@@ -55,7 +55,7 @@ export const ExtractedRecipeSchema = z.object({
   ),
   utensils: z.array(z.string()).describe("Ustensiles et matériel nécessaires"),
   tips: z.string().nullable().describe("Astuces, variantes, conseils de conservation"),
-  tags: z.array(z.string()).describe("3 à 6 mots-clés utiles (ex. végétarien, rapide, hiver, chocolat)"),
+  tags: z.array(z.string()).describe("2 à 5 tags utiles, majuscule initiale (ex. Végétarien, Rapide, Noël, Fête, Été, Chocolat). Végétarien/Vegan/Sans gluten seulement si c'est vrai."),
   images: z
     .array(
       z.object({

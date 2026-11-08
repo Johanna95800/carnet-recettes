@@ -5,7 +5,8 @@ import { RecipeList } from "@/components/RecipeList";
 import { durationItems } from "@/components/Durations";
 import type { Recipe } from "@/lib/types";
 
-export default async function Accueil() {
+export default async function Accueil({ searchParams }: { searchParams: Promise<{ tag?: string }> }) {
+  const { tag } = await searchParams;
   const { supabase, family } = await getSession();
   const { data } = await supabase
     .from("recipes")
@@ -33,6 +34,7 @@ export default async function Accueil() {
         </div>
       ) : (
         <RecipeList
+          initialTag={tag ?? null}
           recipes={recipes.map((r) => ({
             id: r.id, title: r.title, category: r.category, difficulty: r.difficulty, tags: r.tags,
             durations: durationItems(r).map((d) => `${d.icon} ${d.value}`),

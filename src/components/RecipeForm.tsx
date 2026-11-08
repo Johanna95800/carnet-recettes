@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { resizeImage } from "@/lib/image-client";
 import { PhotoEditor } from "./PhotoEditor";
+import { TagInput } from "./TagInput";
 import { CATEGORIES, DIFFICULTIES, REST_LABELS, formatMinutes, parseDuration, type Ingredient, type RecipeDraft } from "@/lib/types";
 
 const BUCKET = "recipe-photos";
@@ -253,11 +254,10 @@ export function RecipeForm({ initial, familyId, recipeId, onCancel }: Props) {
           <span className="etiquette">Astuces, variantes</span>
           <textarea className="champ" rows={3} value={d.tips ?? ""} onChange={(e) => set("tips", e.target.value || null)} />
         </label>
-        <label className="block space-y-1">
-          <span className="etiquette">Mots-clés</span>
-          <input className="champ" placeholder="végétarien, rapide, Noël…" defaultValue={d.tags.join(", ")}
-            onBlur={(e) => set("tags", list(e.target.value))} />
-        </label>
+        <div className="block space-y-1">
+          <span className="etiquette">🏷️ Tags</span>
+          <TagInput value={d.tags} onChange={(v) => set("tags", v)} />
+        </div>
         <label className="block space-y-1">
           <span className="etiquette">Source</span>
           <input className="champ" placeholder="ex. Cahier de mamie, Elle à table n°142…" value={d.source_label ?? ""}

@@ -31,7 +31,18 @@ export default async function RecettePage({ params }: { params: Promise<{ id: st
         </div>
         <p className="etiquette mt-3">{cat.emoji} {cat.label}</p>
         <h1 className="titre text-3xl font-semibold leading-tight">{r.title}</h1>
-        {r.description && <p className="mt-2 text-encre-douce">{r.description}</p>}
+        {r.tags.length > 0 && (
+          <ul className="mt-2 flex flex-wrap gap-1.5">
+            {r.tags.map((t) => (
+              <li key={t}>
+                <Link href={`/?tag=${encodeURIComponent(t)}`} className="rounded-full border border-trait bg-papier px-2.5 py-1 text-sm hover:border-tomate">
+                  🏷️ {t}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        {r.description && <p className="mt-3 text-encre-douce">{r.description}</p>}
 
         <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {durationItems(r).map((d) => (
@@ -54,7 +65,6 @@ export default async function RecettePage({ params }: { params: Promise<{ id: st
         <RecipeView recipe={r} />
 
         <footer className="mt-8 space-y-1 border-t border-trait pt-4 text-sm text-encre-douce">
-          {r.tags.length > 0 && <p>{r.tags.map((t) => `#${t}`).join(" ")}</p>}
           {(r.source_label || r.source_url) && (
             <p>Source : {r.source_url
               ? <a href={r.source_url} target="_blank" rel="noopener noreferrer" className="underline">{r.source_label ?? r.source_url}</a>
