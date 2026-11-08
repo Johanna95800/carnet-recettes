@@ -1,0 +1,155 @@
+import { z } from "zod";
+
+export const CATEGORIES = [
+  { value: "aperitif", label: "Apéritif", emoji: "🥂" },
+  { value: "entree", label: "Entrée", emoji: "🥗" },
+  { value: "plat", label: "Plat", emoji: "🍲" },
+  { value: "accompagnement", label: "Accompagnement", emoji: "🥔" },
+  { value: "dessert", label: "Dessert", emoji: "🍰" },
+  { value: "boisson", label: "Boisson", emoji: "🍹" },
+  { value: "sauce", label: "Sauce", emoji: "🫙" },
+  { value: "petit-dejeuner", label: "Petit-déjeuner", emoji: "🥐" },
+  { value: "autre", label: "Autre", emoji: "🍽️" },
+] as const;
+
+export const DIFFICULTIES = [
+  { value: "tres-facile", label: "Très facile" },
+  { value: "facile", label: "Facile" },
+  { value: "moyen", label: "Moyen" },
+  { value: "difficile", label: "Difficile" },
+] as const;
+
+export type Category = (typeof CATEGORIES)[number]["value"];
+export type Difficulty = (typeof DIFFICULTIES)[number]["value"];
+
+const categoryValues = CATEGORIES.map((c) => c.value) as [Category, ...Category[]];
+const difficultyValues = DIFFICULTIES.map((d) => d.value) as [Difficulty, ...Difficulty[]];
+
+/** Schéma rempli par l'IA lors d'un import (photo ou URL). */
+export const ExtractedRecipeSchema = z.object({
+  found: z.boolean().describe("false si l'image/la page ne contient pas de recette lisible"),
+  title: z.string(),
+  description: z.string().nullable().describe("Courte présentation (1-2 phrases) si présente dans la source"),
+  category: z.enum(categoryValues),
+  difficulty: z.enum(difficultyValues).nullable(),
+  servings: z.number().nullable().describe("Nombre de personnes / parts"),
+  servings_unit: z.string().nullable().describe("ex. 'personnes', 'parts', 'pièces', 'verrines'"),
+  prep_minutes: z.number().nullable(),
+  cook_minutes: z.number().nullable(),
+  rest_minutes: z.number().nullable().describe("Repos / réfrigération / levée"),
+  ingredients: z.array(
+    z.object({
+      quantity: z.number().nullable().describe("Valeur numérique (0.5 pour 1/2). null si 'une pincée', 'selon le goût'..."),
+      unit: z.string().nullable().describe("g, kg, ml, cl, l, c. à soupe, c. à café, pincée, sachet, tranche... null pour un nombre d'unités (3 œufs)"),
+      name: z.string(),
+      note: z.string().nullable().describe("Précision : 'ramolli', 'en dés', 'facultatif'..."),
+      group: z.string().nullable().describe("Sous-partie de la recette si la source en a (ex. 'Pâte', 'Garniture')"),
+    }),
+  ),
+  steps: z.array(
+    z.object({
+      text: z.string(),
+      group: z.string().nullable(),
+    }),
+  ),
+  utensils: z.array(z.string()).describe("Ustensiles et matériel nécessaires"),
+  tips: z.string().nullable().describe("Astuces, variantes, conseils de conservation"),
+  tags: z.array(z.string()).describe("3 à 6 mots-clés utiles (ex. végétarien, rapide, hiver, chocolat)"),
+  dish_photo_box: z
+    .object({
+      image_index: z.number().describe("Index (0-based) de l'image fournie qui contient la photo du plat"),
+      x: z.number().describe("Bord gauche, fraction 0-1 de la largeur"),
+      y: z.number().describe("Bord haut, fraction 0-1 de la hauteur"),
+      width: z.number(),
+      height: z.number(),
+    })
+    .nullable()
+    .describe("Uniquement pour les photos de livre/magazine : cadre de la photo du plat imprimée sur la page. null sinon."),
+});
+export type ExtractedRecipe = z.infer<typeof ExtractedRecipeSchema>;
+
+export type Ingredient = ExtractedRecipe["ingredients"][number];
+export type Step = ExtractedRecipe["steps"][number];
+
+export type SourceType = "url" | "photo-manuscrite" | "photo-livre" | "manuel";
+
+export interface Recipe {
+  id: string;
+  family_id: string;
+  created_by: string | null;
+  title: string;
+  description: string | null;
+  category: Category;
+  difficulty: Difficulty | null;
+  servings: number | null;
+  servings_unit: string | null;
+  prep_minutes: number | null;
+  cook_minutes: number | null;
+  rest_minutes: number | null;
+  ingredients: Ingredient[];
+  steps: Step[];
+  utensils: string[];
+  tips: string | null;
+  tags: string[];
+  photos: string[];
+  source_type: SourceType | null;
+  source_url: string | null;
+  source_label: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Brouillon édité dans le formulaire avant enregistrement. */
+export type RecipeDraft = Omit<Recipe, "id" | "family_id" | "created_by" | "created_at" | "updated_at">;
+
+export function emptyDraft(): RecipeDraft {
+  return {
+    title: "",
+    description: null,
+    category: "plat",
+    difficulty: null,
+    servings: 4,
+    servings_unit: "personnes",
+    prep_minutes: null,
+    cook_minutes: null,
+    rest_minutes: null,
+    ingredients: [],
+    steps: [],
+    utensils: [],
+    tips: null,
+    tags: [],
+    photos: [],
+    source_type: "manuel",
+    source_url: null,
+    source_label: null,
+  };
+}
+
+export function categoryLabel(c: string) {
+  return CATEGORIES.find((x) => x.value === c) ?? CATEGORIES[CATEGORIES.length - 1];
+}
+export function difficultyLabel(d: string | null) {
+  return DIFFICULTIES.find((x) => x.value === d)?.label ?? null;
+}
+
+export function formatMinutes(m: number | null | undefined) {
+  if (!m) return null;
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  const r = m % 60;
+  return r ? `${h} h ${String(r).padStart(2, "0")}` : `${h} h`;
+}
+
+const FRACTIONS: [number, string][] = [
+  [0.25, "¼"], [0.333, "⅓"], [0.5, "½"], [0.667, "⅔"], [0.75, "¾"],
+];
+export function formatQuantity(q: number | null) {
+  if (q == null) return "";
+  const whole = Math.floor(q);
+  const frac = q - whole;
+  for (const [v, s] of FRACTIONS) {
+    if (Math.abs(frac - v) < 0.04) return whole ? `${whole} ${s}` : s;
+  }
+  if (frac < 0.04) return String(whole);
+  return String(Math.round(q * 10) / 10).replace(".", ",");
+}
