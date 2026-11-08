@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { z } from "zod";
 import { ExtractedRecipeSchema, type ExtractedRecipe } from "@/lib/types";
 
 const client = new Anthropic(); // lit ANTHROPIC_API_KEY
@@ -16,7 +17,7 @@ Règles :
 - Catégorie : choisis la plus adaptée (apéritif, entrée, plat, accompagnement, dessert, boisson, sauce, petit-déjeuner, autre).
 - Écriture manuscrite difficile à lire : fais au mieux en t'aidant du contexte culinaire ; si un mot reste illisible, mets [?] à sa place.
 - Si plusieurs images sont fournies, elles forment une seule recette (pages successives).
-- Photos : pour chaque image, indique la rotation qui remet le texte à l'endroit (une photo prise téléphone à plat est souvent couchée ou à l'envers) et le cadre de la page pour retirer la table autour. Tous les cadres (page_box, dish_photo_box) sont exprimés dans l'image telle que fournie, AVANT rotation. Le cadre de la photo du plat doit coller aux bords de la photo imprimée, sans texte ni marge.
+- Photos : pour chaque image, indique la rotation qui remet le texte à l'endroit (une photo prise téléphone à plat est souvent couchée ou à l'envers).
 - Si aucune recette n'est présente, renvoie found=false avec des champs vides.`;
 
 export type ImageInput = { base64: string; mediaType: "image/jpeg" | "image/png" | "image/webp" };
@@ -62,8 +63,8 @@ async function run(content: Anthropic.Beta.BetaContentBlockParam[]): Promise<Ext
 export function extractFromImages(images: ImageInput[], kind: "manuscrite" | "livre") {
   const hint =
     kind === "manuscrite"
-      ? "Voici la photo d'une recette écrite à la main. Retranscris-la, et remplis images (une entrée par photo). dish_photo_box doit être null."
-      : "Voici la photo d'une recette tirée d'un livre ou d'un magazine. Retranscris-la, et remplis images (une entrée par photo). Si une photo du plat est imprimée sur la page, donne son cadre dans dish_photo_box.";
+      ? "Voici la photo d'une recette écrite à la main. Retranscris-la, et remplis images (une entrée par photo)."
+      : "Voici la photo d'une recette tirée d'un livre ou d'un magazine. Retranscris-la, et remplis images (une entrée par photo).";
   return run([
     ...images.map(
       (img): Anthropic.Beta.BetaContentBlockParam => ({
@@ -77,9 +78,64 @@ export function extractFromImages(images: ImageInput[], kind: "manuscrite" | "li
 
 export function extractFromWebPage(url: string, structured: string | null, pageText: string) {
   const parts = [
-    `Voici le contenu d'une page web de recette (${url}). Retranscris la recette. images doit être vide et dish_photo_box null.`,
+    `Voici le contenu d'une page web de recette (${url}). Retranscris la recette. images doit être vide.`,
   ];
   if (structured) parts.push(`<donnees_structurees>\n${structured}\n</donnees_structurees>`);
   parts.push(`<texte_de_la_page>\n${pageText}\n</texte_de_la_page>`);
   return run([{ type: "text", text: parts.join("\n\n") }]);
+}
+
+const PixelBox = z.object({
+  left: z.number(),
+  top: z.number(),
+  right: z.number(),
+  bottom: z.number(),
+});
+
+const LocateSchema = z.object({
+  images: z.array(
+    z.object({
+      image_index: z.number(),
+      page_box: PixelBox.describe("Bords de la feuille / de la page (ou des deux pages ouvertes), en pixels"),
+      dish_photo_box: PixelBox.nullable().describe(
+        "Bords de la photo du plat imprimée sur cette page, en pixels. null s'il n'y en a pas sur cette image.",
+      ),
+    }),
+  ),
+});
+export type Located = z.infer<typeof LocateSchema>["images"][number];
+
+/**
+ * Localise, sur des images déjà remises à l'endroit, la page et la photo du plat.
+ * Appel séparé et dédié : bien plus précis que de demander les cadres pendant la retranscription.
+ */
+export async function locateOnPages(
+  images: (ImageInput & { width: number; height: number })[],
+  withDish: boolean,
+): Promise<Located[]> {
+  const content: Anthropic.Beta.BetaContentBlockParam[] = [];
+  images.forEach((img, i) => {
+    content.push({ type: "text", text: `Image ${i} — ${img.width} × ${img.height} pixels :` });
+    content.push({ type: "image", source: { type: "base64", media_type: img.mediaType, data: img.base64 } });
+  });
+  content.push({
+    type: "text",
+    text: `Pour chaque image, donne en pixels (origine en haut à gauche, x vers la droite, y vers le bas) :
+- page_box : les bords exacts de la feuille ou de la page photographiée (des deux pages si le livre est ouvert), en excluant la table, la main, le fond. Si la page remplit toute l'image, donne toute l'image.
+${withDish
+  ? "- dish_photo_box : les bords exacts de la photo du plat imprimée sur la page — au ras de l'image imprimée, sans le texte, le titre ni la marge blanche autour. Si plusieurs photos, prends la plus grande montrant le plat terminé. null si cette image n'en contient pas."
+  : "- dish_photo_box : toujours null."}
+Sois précis au pixel près : regarde où se trouvent réellement les bords.`,
+  });
+
+  const response = await client.beta.messages.parse({
+    model: "claude-opus-5-5",
+    max_tokens: 16000,
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+    output_config: { effort: "medium", format: zodOutputFormat(LocateSchema) },
+    messages: [{ role: "user", content }],
+  });
+  if (response.stop_reason !== "end_turn" || !response.parsed_output) return [];
+  return response.parsed_output.images;
 }

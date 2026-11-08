@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import sharp from "sharp";
 import { getSession } from "@/lib/supabase/server";
-import { extractFromImages, ExtractionError } from "@/lib/import/claude";
-import { straightenAndCrop, toStoredJpeg, uploadPhoto } from "@/lib/import/photos";
+import { extractFromImages, locateOnPages, ExtractionError } from "@/lib/import/claude";
+import { cropTo, forModel, makeUpright, refineBox, toStoredJpeg, uploadPhoto } from "@/lib/import/photos";
 import { toDraft } from "@/lib/import/draft";
 
 export const maxDuration = 300;
@@ -20,30 +19,41 @@ export async function POST(req: Request) {
 
   try {
     const originals = await Promise.all(files.map(async (f) => Buffer.from(await f.arrayBuffer())));
-    // Version envoyée à l'IA : orientée correctement, 1600 px max
-    const forAi = await Promise.all(
-      originals.map(async (b) => ({
-        base64: (await sharp(b).rotate().resize(1600, 1600, { fit: "inside", withoutEnlargement: true })
-          .jpeg({ quality: 85 }).toBuffer()).toString("base64"),
-        mediaType: "image/jpeg" as const,
-      })),
-    );
+    // 1) Retranscription (l'IA indique aussi dans quel sens tourner chaque photo)
+    const forAi = await Promise.all(originals.map(async (b) => forModel((await makeUpright(b, 0)).buf)));
     const recipe = await extractFromImages(forAi, kind);
 
-    const photos: string[] = [];
-    const info = (i: number) => recipe.images.find((im) => im.image_index === i);
-    const rotationOf = (i: number) => Number(info(i)?.rotation ?? 0);
+    // 2) Remise à l'endroit, puis localisation précise de la page et de la photo du plat
+    const rotationOf = (i: number) => Number(recipe.images.find((im) => im.image_index === i)?.rotation ?? 0);
+    const upright = await Promise.all(originals.map((b, i) => makeUpright(b, rotationOf(i))));
+    const small = await Promise.all(upright.map((u) => forModel(u.buf)));
+    const located = await locateOnPages(small, kind === "livre").catch((e) => {
+      console.error("localisation", e);
+      return [];
+    });
+    // coordonnées renvoyées dans l'image réduite → image pleine résolution
+    const toFull = (i: number, box: { left: number; top: number; right: number; bottom: number }) => {
+      const k = upright[i].width / small[i].width;
+      return { left: box.left * k, top: box.top * k, right: box.right * k, bottom: box.bottom * k };
+    };
 
-    const box = recipe.dish_photo_box;
-    if (kind === "livre" && box && originals[box.image_index]) {
-      const crop = await straightenAndCrop(originals[box.image_index], box, rotationOf(box.image_index), { requireBox: true }).catch(() => null);
-      if (crop) photos.push(await uploadPhoto(supabase, family.id, crop));
+    const photos: string[] = [];
+    if (kind === "livre") {
+      const withDish = located
+        .filter((l) => l.dish_photo_box && upright[l.image_index])
+        .sort((a, b) => area(b.dish_photo_box!) - area(a.dish_photo_box!))[0];
+      if (withDish) {
+        const i = withDish.image_index;
+        const box = await refineBox(upright[i].buf, toFull(i, withDish.dish_photo_box!), "dish").catch(() => null);
+        if (box) photos.push(await uploadPhoto(supabase, family.id, await cropTo(upright[i].buf, box)));
+      }
     }
-    // On garde aussi les pages / fiches d'origine, remises à l'endroit et recadrées
-    for (const [i, b] of originals.entries()) {
-      const page = (await straightenAndCrop(b, info(i)?.page_box ?? null, rotationOf(i), { maxSide: 2000 }).catch(() => null))
-        ?? (await toStoredJpeg(b, 2000));
-      photos.push(await uploadPhoto(supabase, family.id, page));
+    // Pages / fiches d'origine, remises à l'endroit et débarrassées du fond
+    for (const [i, u] of upright.entries()) {
+      const l = located.find((x) => x.image_index === i);
+      const box = l ? await refineBox(u.buf, toFull(i, l.page_box), "page").catch(() => null) : null;
+      const jpeg = box ? await cropTo(u.buf, box, 2000) : await toStoredJpeg(u.buf, 2000);
+      photos.push(await uploadPhoto(supabase, family.id, jpeg));
     }
 
     const draft = toDraft(recipe, { type: kind === "livre" ? "photo-livre" : "photo-manuscrite" }, photos);
@@ -53,4 +63,8 @@ export async function POST(req: Request) {
     const message = err instanceof ExtractionError ? err.message : "Impossible d'analyser la photo.";
     return NextResponse.json({ error: message }, { status: 422 });
   }
+}
+
+function area(b: { left: number; top: number; right: number; bottom: number }) {
+  return Math.max(0, b.right - b.left) * Math.max(0, b.bottom - b.top);
 }
