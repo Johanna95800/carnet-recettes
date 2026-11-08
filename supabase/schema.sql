@@ -116,3 +116,5 @@ create policy "photos ajout" on storage.objects for insert
   with check (bucket_id = 'recipe-photos' and public.is_family_member(((storage.foldername(name))[1])::uuid));
 create policy "photos suppression" on storage.objects for delete
   using (bucket_id = 'recipe-photos' and public.is_family_member(((storage.foldername(name))[1])::uuid));
+
+-- Mises à jour ultérieures : voir supabase/migrations/ (à exécuter dans l'ordre)
