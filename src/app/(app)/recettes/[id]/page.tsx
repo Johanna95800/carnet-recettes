@@ -5,6 +5,7 @@ import { signPhotos } from "@/lib/photos-server";
 import { categoryLabel, difficultyLabel, formatMinutes, type Recipe } from "@/lib/types";
 import { RecipeView } from "@/components/RecipeView";
 import { RecipeActions } from "@/components/RecipeActions";
+import { PhotoGallery } from "@/components/PhotoGallery";
 
 export default async function RecettePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -21,14 +22,7 @@ export default async function RecettePage({ params }: { params: Promise<{ id: st
 
   return (
     <main>
-      {r.photos.length > 0 ? (
-        <div className="flex snap-x snap-mandatory overflow-x-auto md:mt-4 md:rounded-2xl">
-          {r.photos.map((p) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img key={p} src={urls[p]} alt="" className="aspect-[4/3] max-h-[60vh] w-full shrink-0 snap-center object-cover" />
-          ))}
-        </div>
-      ) : null}
+      <PhotoGallery urls={r.photos.map((p) => urls[p]).filter(Boolean)} />
       <div className="px-4 pt-4">
         <div className="flex items-center justify-between">
           <Link href="/" className="text-sm text-encre-douce">← Recettes</Link>

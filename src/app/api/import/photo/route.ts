@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import sharp from "sharp";
 import { getSession } from "@/lib/supabase/server";
 import { extractFromImages, ExtractionError } from "@/lib/import/claude";
-import { cropFraction, toStoredJpeg, uploadPhoto } from "@/lib/import/photos";
+import { straightenAndCrop, toStoredJpeg, uploadPhoto } from "@/lib/import/photos";
 import { toDraft } from "@/lib/import/draft";
 
 export const maxDuration = 300;
@@ -31,13 +31,20 @@ export async function POST(req: Request) {
     const recipe = await extractFromImages(forAi, kind);
 
     const photos: string[] = [];
+    const info = (i: number) => recipe.images.find((im) => im.image_index === i);
+    const rotationOf = (i: number) => Number(info(i)?.rotation ?? 0);
+
     const box = recipe.dish_photo_box;
     if (kind === "livre" && box && originals[box.image_index]) {
-      const crop = await cropFraction(originals[box.image_index], box).catch(() => null);
+      const crop = await straightenAndCrop(originals[box.image_index], box, rotationOf(box.image_index), { requireBox: true }).catch(() => null);
       if (crop) photos.push(await uploadPhoto(supabase, family.id, crop));
     }
-    // On garde aussi les photos d'origine (souvenir de la fiche manuscrite / page du livre)
-    for (const b of originals) photos.push(await uploadPhoto(supabase, family.id, await toStoredJpeg(b, 2000)));
+    // On garde aussi les pages / fiches d'origine, remises à l'endroit et recadrées
+    for (const [i, b] of originals.entries()) {
+      const page = (await straightenAndCrop(b, info(i)?.page_box ?? null, rotationOf(i), { maxSide: 2000 }).catch(() => null))
+        ?? (await toStoredJpeg(b, 2000));
+      photos.push(await uploadPhoto(supabase, family.id, page));
+    }
 
     const draft = toDraft(recipe, { type: kind === "livre" ? "photo-livre" : "photo-manuscrite" }, photos);
     return NextResponse.json({ draft });

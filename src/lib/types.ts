@@ -25,6 +25,14 @@ export type Difficulty = (typeof DIFFICULTIES)[number]["value"];
 const categoryValues = CATEGORIES.map((c) => c.value) as [Category, ...Category[]];
 const difficultyValues = DIFFICULTIES.map((d) => d.value) as [Difficulty, ...Difficulty[]];
 
+/** Cadre en fractions (0-1) de l'image TELLE QUE FOURNIE (avant toute rotation). */
+const Box = z.object({
+  x: z.number().describe("Bord gauche, fraction 0-1 de la largeur de l'image telle que fournie"),
+  y: z.number().describe("Bord haut, fraction 0-1 de la hauteur de l'image telle que fournie"),
+  width: z.number(),
+  height: z.number(),
+});
+
 /** Schéma rempli par l'IA lors d'un import (photo ou URL). */
 export const ExtractedRecipeSchema = z.object({
   found: z.boolean().describe("false si l'image/la page ne contient pas de recette lisible"),
@@ -55,14 +63,22 @@ export const ExtractedRecipeSchema = z.object({
   utensils: z.array(z.string()).describe("Ustensiles et matériel nécessaires"),
   tips: z.string().nullable().describe("Astuces, variantes, conseils de conservation"),
   tags: z.array(z.string()).describe("3 à 6 mots-clés utiles (ex. végétarien, rapide, hiver, chocolat)"),
-  dish_photo_box: z
-    .object({
-      image_index: z.number().describe("Index (0-based) de l'image fournie qui contient la photo du plat"),
-      x: z.number().describe("Bord gauche, fraction 0-1 de la largeur"),
-      y: z.number().describe("Bord haut, fraction 0-1 de la hauteur"),
-      width: z.number(),
-      height: z.number(),
-    })
+  images: z
+    .array(
+      z.object({
+        image_index: z.number().describe("Index (0-based) de l'image fournie"),
+        rotation: z
+          .enum(["0", "90", "180", "270"])
+          .describe("Rotation dans le sens des aiguilles d'une montre à appliquer pour que le texte se lise à l'endroit"),
+        page_box: Box.nullable().describe(
+          "Cadre serré autour de la fiche / de la page (ou des deux pages) pour éliminer la table et le fond. null si l'image est déjà bien cadrée.",
+        ),
+      }),
+    )
+    .describe("Une entrée par image fournie (vide pour une page web)"),
+  dish_photo_box: Box.extend({
+    image_index: z.number().describe("Index (0-based) de l'image fournie qui contient la photo du plat"),
+  })
     .nullable()
     .describe("Uniquement pour les photos de livre/magazine : cadre de la photo du plat imprimée sur la page. null sinon."),
 });

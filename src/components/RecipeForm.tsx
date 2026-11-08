@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { resizeImage } from "@/lib/image-client";
+import { PhotoEditor } from "./PhotoEditor";
 import { CATEGORIES, DIFFICULTIES, type Ingredient, type RecipeDraft } from "@/lib/types";
 
 const BUCKET = "recipe-photos";
@@ -23,6 +24,37 @@ export function RecipeForm({ initial, familyId, recipeId, onCancel }: Props) {
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  // photos envoyées pendant cette édition (pour nettoyer celles qu'on n'a finalement pas gardées)
+  const sessionUploads = useRef<Set<string>>(new Set());
+
+  async function upload(blob: Blob) {
+    const path = `${familyId}/${crypto.randomUUID()}.jpg`;
+    const { error } = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg" });
+    if (error) throw error;
+    sessionUploads.current.add(path);
+    return path;
+  }
+
+  const loadEditing = useCallback(async () => {
+    const { data, error } = await supabase.storage.from(BUCKET).download(editing!);
+    if (error || !data) throw error ?? new Error("photo");
+    return data;
+  }, [editing]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function saveEdited(blob: Blob) {
+    const old = editing!;
+    const path = await upload(blob);
+    setUrls((u) => ({ ...u, [path]: URL.createObjectURL(blob) }));
+    setD((p) => ({ ...p, photos: p.photos.map((x) => (x === old ? path : x)) }));
+    setEditing(null);
+  }
+
+  function cancel() {
+    const orphans = [...sessionUploads.current];
+    if (orphans.length) supabase.storage.from(BUCKET).remove(orphans);
+    onCancel?.();
+  }
 
   const set = <K extends keyof RecipeDraft>(k: K, v: RecipeDraft[K]) => setD((p) => ({ ...p, [k]: v }));
 
@@ -43,10 +75,11 @@ export function RecipeForm({ initial, familyId, recipeId, onCancel }: Props) {
     setUploading(true);
     const added: string[] = [];
     for (const f of Array.from(files)) {
-      const blob = await resizeImage(f, 1600);
-      const path = `${familyId}/${crypto.randomUUID()}.jpg`;
-      const { error } = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg" });
-      if (!error) added.push(path);
+      try {
+        added.push(await upload(await resizeImage(f, 2000)));
+      } catch {
+        /* photo ignorée */
+      }
     }
     set("photos", [...d.photos, ...added]);
     setUploading(false);
@@ -74,8 +107,8 @@ export function RecipeForm({ initial, familyId, recipeId, onCancel }: Props) {
       : await supabase.from("recipes").insert({ ...payload, family_id: familyId,
           created_by: (await supabase.auth.getUser()).data.user?.id }).select("id").single();
     if (res.error) { setError(res.error.message); setBusy(false); return; }
-    const removed = initial.photos.filter((p) => !d.photos.includes(p));
-    if (recipeId && removed.length) await supabase.storage.from(BUCKET).remove(removed);
+    const unused = [...initial.photos, ...sessionUploads.current].filter((p) => !d.photos.includes(p));
+    if (unused.length) await supabase.storage.from(BUCKET).remove(unused);
     router.push(`/recettes/${res.data.id}`);
     router.refresh();
   }
@@ -91,6 +124,7 @@ export function RecipeForm({ initial, familyId, recipeId, onCancel }: Props) {
             <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => addPhotos(e.target.files)} />
           </label>
         </div>
+        {d.photos.length > 0 && <p className="mt-1 text-xs text-encre-douce">✎ pour tourner ou recadrer · ★ pour choisir la photo principale</p>}
         {d.photos.length > 0 ? (
           <ul className="mt-3 flex gap-2 overflow-x-auto pb-1">
             {d.photos.map((p, i) => (
@@ -98,6 +132,9 @@ export function RecipeForm({ initial, familyId, recipeId, onCancel }: Props) {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={urls[p]} alt="" className="h-28 w-28 rounded-xl bg-creme object-cover" />
                 {i === 0 && <span className="absolute left-1 top-1 rounded-md bg-black/60 px-1.5 text-xs text-white">Principale</span>}
+                <button type="button" title="Retoucher (rotation, recadrage)"
+                  className="absolute right-1 top-1 rounded-md bg-black/60 px-1.5 text-xs text-white"
+                  onClick={() => setEditing(p)}>✎</button>
                 <div className="absolute inset-x-1 bottom-1 flex justify-between">
                   {i > 0 ? (
                     <button type="button" title="Mettre en photo principale" className="rounded-md bg-black/60 px-1.5 text-xs text-white"
@@ -225,9 +262,12 @@ export function RecipeForm({ initial, familyId, recipeId, onCancel }: Props) {
         </label>
       </section>
 
+      {editing && (
+        <PhotoEditor load={loadEditing} onSave={saveEdited} onClose={() => setEditing(null)} />
+      )}
       {error && <p className="text-sm text-tomate">{error}</p>}
       <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 flex gap-3 rounded-2xl bg-creme/90 py-2 backdrop-blur md:bottom-4">
-        {onCancel && <button type="button" className="btn-secondaire flex-1" onClick={onCancel}>Annuler</button>}
+        {onCancel && <button type="button" className="btn-secondaire flex-1" onClick={cancel}>Annuler</button>}
         <button className="btn-primaire flex-[2]" disabled={busy || uploading}>{busy ? "Enregistrement…" : "Enregistrer la recette"}</button>
       </div>
     </form>

@@ -16,6 +16,7 @@ Règles :
 - Catégorie : choisis la plus adaptée (apéritif, entrée, plat, accompagnement, dessert, boisson, sauce, petit-déjeuner, autre).
 - Écriture manuscrite difficile à lire : fais au mieux en t'aidant du contexte culinaire ; si un mot reste illisible, mets [?] à sa place.
 - Si plusieurs images sont fournies, elles forment une seule recette (pages successives).
+- Photos : pour chaque image, indique la rotation qui remet le texte à l'endroit (une photo prise téléphone à plat est souvent couchée ou à l'envers) et le cadre de la page pour retirer la table autour. Tous les cadres (page_box, dish_photo_box) sont exprimés dans l'image telle que fournie, AVANT rotation. Le cadre de la photo du plat doit coller aux bords de la photo imprimée, sans texte ni marge.
 - Si aucune recette n'est présente, renvoie found=false avec des champs vides.`;
 
 export type ImageInput = { base64: string; mediaType: "image/jpeg" | "image/png" | "image/webp" };
@@ -61,8 +62,8 @@ async function run(content: Anthropic.Beta.BetaContentBlockParam[]): Promise<Ext
 export function extractFromImages(images: ImageInput[], kind: "manuscrite" | "livre") {
   const hint =
     kind === "manuscrite"
-      ? "Voici la photo d'une recette écrite à la main. Retranscris-la. dish_photo_box doit être null."
-      : "Voici la photo d'une recette tirée d'un livre ou d'un magazine. Retranscris-la. Si une photo du plat est imprimée sur la page, donne son cadre dans dish_photo_box.";
+      ? "Voici la photo d'une recette écrite à la main. Retranscris-la, et remplis images (une entrée par photo). dish_photo_box doit être null."
+      : "Voici la photo d'une recette tirée d'un livre ou d'un magazine. Retranscris-la, et remplis images (une entrée par photo). Si une photo du plat est imprimée sur la page, donne son cadre dans dish_photo_box.";
   return run([
     ...images.map(
       (img): Anthropic.Beta.BetaContentBlockParam => ({
@@ -76,7 +77,7 @@ export function extractFromImages(images: ImageInput[], kind: "manuscrite" | "li
 
 export function extractFromWebPage(url: string, structured: string | null, pageText: string) {
   const parts = [
-    `Voici le contenu d'une page web de recette (${url}). Retranscris la recette. dish_photo_box doit être null.`,
+    `Voici le contenu d'une page web de recette (${url}). Retranscris la recette. images doit être vide et dish_photo_box null.`,
   ];
   if (structured) parts.push(`<donnees_structurees>\n${structured}\n</donnees_structurees>`);
   parts.push(`<texte_de_la_page>\n${pageText}\n</texte_de_la_page>`);
