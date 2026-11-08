@@ -19,6 +19,7 @@ export function RecipeActions({ id, title, photos, shareToken }: { id: string; t
   return (
     <div className="flex gap-1 text-sm">
       <ShareMenu id={id} title={title} shareToken={shareToken} />
+      <Link className="rounded-lg px-2.5 py-1.5 hover:bg-papier" href={`/livre/imprimer?ids=${id}`}>Imprimer</Link>
       <Link className="rounded-lg px-2.5 py-1.5 hover:bg-papier" href={`/recettes/${id}/modifier`}>Modifier</Link>
       <button className="rounded-lg px-2.5 py-1.5 text-tomate hover:bg-papier" onClick={remove}>Supprimer</button>
     </div>

@@ -29,7 +29,10 @@ export default async function Accueil({ searchParams }: { searchParams: Promise<
           <p className="etiquette">{family!.name}</p>
           <h1 className="titre text-3xl font-semibold">Nos recettes</h1>
         </div>
-        <Link href="/ajouter" className="btn-primaire hidden md:inline-flex">➕ Ajouter</Link>
+        <div className="flex gap-2">
+          <Link href="/livre" className="btn-secondaire py-2 text-sm">📕 Livre</Link>
+          <Link href="/ajouter" className="btn-primaire hidden md:inline-flex">➕ Ajouter</Link>
+        </div>
       </header>
       {recipes.length === 0 ? (
         <div className="carte p-8 text-center">

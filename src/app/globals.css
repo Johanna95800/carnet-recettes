@@ -47,3 +47,15 @@ body {
 @utility btn-secondaire { @apply btn border border-trait bg-papier hover:border-tomate; }
 @utility carte { @apply rounded-2xl border border-trait bg-papier; }
 @utility etiquette { @apply text-sm font-medium text-encre-douce; }
+
+/* Livre / impression ------------------------------------------------------ */
+@media print {
+  @page { size: A4; margin: 14mm; }
+  html, body { background: #fff !important; color: #000 !important; }
+  nav, .print\:hidden { display: none !important; }
+  .livre .page { break-after: page; padding: 0 !important; min-height: auto; }
+  .livre .page:last-of-type { break-after: auto; }
+  .livre article li, .livre article img { break-inside: avoid; }
+}
+.livre .page + .page { border-top: 1px dashed #ddd; }
+@media print { .livre .page + .page { border-top: none; } }
