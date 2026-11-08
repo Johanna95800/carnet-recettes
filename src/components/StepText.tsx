@@ -1,7 +1,7 @@
 "use client";
 
 import { splitDurations } from "@/lib/durations";
-import { scaleStepText } from "@/lib/scale";
+import { convertFahrenheit, scaleStepText } from "@/lib/scale";
 import { useTimers } from "./Timers";
 
 /** Texte d'une étape : quantités ajustées en couleur, durées cliquables (minuteur). */
@@ -9,7 +9,7 @@ export function StepText({ text, factor, label, big = false }: { text: string; f
   const { start } = useTimers();
   return (
     <>
-      {scaleStepText(text, factor).flatMap((part, i) =>
+      {scaleStepText(convertFahrenheit(text), factor).flatMap((part, i) =>
         part.scaled
           ? [<strong key={i} className="text-tomate">{part.text}</strong>]
           : splitDurations(part.text).map((p, j) =>

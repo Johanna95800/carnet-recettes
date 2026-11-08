@@ -118,3 +118,8 @@ export function scaleStepText(text: string, factor: number): { text: string; sca
   out.push({ text: text.slice(last), scaled: false });
   return out.filter((p) => p.text);
 }
+
+/** Filet de sécurité : « 350°F » → « 180 °C » (arrondi à 5) si une recette en contient encore. */
+export function convertFahrenheit(text: string) {
+  return text.replace(/(\d{3})\s?°\s?F\b/g, (_, f) => `${Math.round(((Number(f) - 32) * 5) / 9 / 5) * 5} °C`);
+}

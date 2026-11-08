@@ -11,6 +11,13 @@ Règles :
 - Écris en français. Si la source est dans une autre langue, traduis-la.
 - Recopie les étapes fidèlement, sans en inventer ; découpe-les en étapes courtes et claires, une action principale par étape. Ne numérote pas les étapes dans le texte.
 - Ingrédients : sépare quantité numérique, unité et nom (« 200 g de farine » → quantity 200, unit "g", name "farine"). Convertis les fractions (½ → 0.5). Pour « 3 œufs », unit est null.
+- Unités : convertis TOUJOURS en unités françaises, dans les ingrédients comme dans les étapes :
+  · cups / tasses américaines, oz, lb, sticks → grammes pour les solides, selon l'ingrédient (1 cup de farine ≈ 125 g, de sucre ≈ 200 g, de sucre glace ≈ 120 g, de cassonade ≈ 220 g, de riz ≈ 190 g, de flocons d'avoine ≈ 90 g, de fromage râpé ≈ 100 g, de pépites de chocolat ≈ 170 g ; 1 stick de beurre = 113 g ; 1 oz = 28 g ; 1 lb = 450 g) ;
+  · liquides en cups, fl oz, pints, quarts → ml ou cl (1 cup = 24 cl, 1 fl oz = 3 cl) ;
+  · tbsp / tablespoon → « c. à soupe », tsp / teaspoon → « c. à café » ;
+  · °F → °C arrondis à 5 près (350 °F → 180 °C, 400 °F → 200 °C), gas mark → °C ;
+  · pouces (inches) → cm (moule de 9 inches → 23 cm).
+  Arrondis à des valeurs de cuisine (125 g plutôt que 127,6 g).
 - Ustensiles : liste ceux cités ; si la source n'en cite pas, déduis le matériel indispensable des étapes (moule, saladier, fouet, four…).
 - Durées en minutes, bien séparées : prep_minutes = travail actif seulement ; cook_minutes = cuisson ; rest_minutes = attente sans intervention (refroidissement, réfrigération, levée, marinade…) avec sa nature dans rest_label. Ne mets JAMAIS un temps de refroidissement ou de repos dans la préparation. Si la source donne un « temps total », redécompose-le. Si les durées ne sont pas indiquées, estime-les à partir des étapes.
 - Difficulté : reprends celle de la source, sinon estime-la.
