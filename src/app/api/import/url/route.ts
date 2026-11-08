@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import sharp from "sharp";
 import { getSession } from "@/lib/supabase/server";
 import { extractFromWebPage, ExtractionError } from "@/lib/import/claude";
 import { fetchPublic, parseRecipePage } from "@/lib/import/web";
@@ -23,16 +24,19 @@ export async function POST(req: Request) {
     }
     const recipe = await extractFromWebPage(page.url.toString(), structured, text);
 
-    const photos: string[] = [];
+    // Les sites déclarent souvent la même photo en plusieurs tailles / cadrages :
+    // on n'en garde qu'une, la plus grande.
+    let best: { buf: Buffer; area: number } | null = null;
     for (const img of images) {
       try {
         const { buf } = await fetchPublic(img, "image/*", 15_000_000);
-        photos.push(await uploadPhoto(supabase, family.id, await toStoredJpeg(buf)));
-        if (photos.length >= 2) break;
+        const { width = 0, height = 0 } = await sharp(buf).metadata();
+        if (!best || width * height > best.area) best = { buf, area: width * height };
       } catch {
         /* image illisible : on passe */
       }
     }
+    const photos = best ? [await uploadPhoto(supabase, family.id, await toStoredJpeg(best.buf))] : [];
     return NextResponse.json({ draft: toDraft(recipe, { type: "url", url: page.url.toString() }, photos) });
   } catch (err) {
     console.error("import url", err);
