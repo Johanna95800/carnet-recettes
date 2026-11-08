@@ -83,6 +83,29 @@ export function extractFromImages(images: ImageInput[], kind: "manuscrite" | "li
   ]);
 }
 
+export function extractFromVideo(url: string, platform: string, title: string, description: string) {
+  return run([{
+    type: "text",
+    text: `Voici le titre et la description d'une vidéo de recette ${platform} (${url}). Retranscris la recette à partir de ce texte. Si la description ne contient pas la recette (ni ingrédients ni étapes), renvoie found=false. images doit être vide.
+
+<titre>${title}</titre>
+<description>
+${description.slice(0, 20_000)}
+</description>`,
+  }]);
+}
+
+export function extractFromText(text: string) {
+  return run([{
+    type: "text",
+    text: `Voici le texte d'une recette (copié d'un message, d'un email, d'une description de vidéo…). Retranscris-la. images doit être vide.
+
+<texte>
+${text.slice(0, 40_000)}
+</texte>`,
+  }]);
+}
+
 export function extractFromWebPage(url: string, structured: string | null, pageText: string) {
   const parts = [
     `Voici le contenu d'une page web de recette (${url}). Retranscris la recette. images doit être vide.`,

@@ -6,10 +6,11 @@ import { resizeImage } from "@/lib/image-client";
 import { emptyDraft, type RecipeDraft } from "@/lib/types";
 import { RecipeForm } from "./RecipeForm";
 
-type Mode = "url" | "manuscrite" | "livre";
+type Mode = "url" | "texte" | "manuscrite" | "livre";
 
 const METHODS: { mode: Mode | "manuel"; icon: string; title: string; text: string }[] = [
-  { mode: "url", icon: "🔗", title: "Depuis un site", text: "Collez l'adresse d'une recette en ligne" },
+  { mode: "url", icon: "🔗", title: "Site ou vidéo", text: "Adresse d'une recette en ligne, ou d'une vidéo YouTube, TikTok, Instagram" },
+  { mode: "texte", icon: "📋", title: "Coller un texte", text: "Recette reçue par message, email, description de vidéo…" },
   { mode: "manuscrite", icon: "✍️", title: "Recette manuscrite", text: "Photographiez une fiche écrite à la main" },
   { mode: "livre", icon: "📚", title: "Livre ou magazine", text: "Photographiez la page (la photo du plat est récupérée)" },
   { mode: "manuel", icon: "⌨️", title: "Saisie libre", text: "Écrivez la recette vous-même" },
@@ -19,6 +20,7 @@ export function AddRecipe({ familyId }: { familyId: string }) {
   const [mode, setMode] = useState<Mode | null>(null);
   const [draft, setDraft] = useState<RecipeDraft | null>(null);
   const [url, setUrl] = useState("");
+  const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +38,10 @@ export function AddRecipe({ familyId }: { familyId: string }) {
       if (mode === "url") {
         res = await fetch("/api/import/url", {
           method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url }),
+        });
+      } else if (mode === "texte") {
+        res = await fetch("/api/import/text", {
+          method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }),
         });
       } else {
         const fd = new FormData();
@@ -91,11 +97,23 @@ export function AddRecipe({ familyId }: { familyId: string }) {
       {mode === "url" ? (
         <form className="carte space-y-3 p-5" onSubmit={(e) => { e.preventDefault(); analyse(); }}>
           <label className="block space-y-1">
-            <span className="etiquette">Adresse de la recette</span>
+            <span className="etiquette">Adresse de la recette ou de la vidéo</span>
             <input className="champ" type="url" inputMode="url" placeholder="https://…" required value={url}
               onChange={(e) => setUrl(e.target.value)} />
           </label>
           <button className="btn-primaire w-full" disabled={busy}>{busy ? "Lecture de la page…" : "Importer"}</button>
+          <p className="text-xs text-encre-douce">
+            Pour une vidéo, la recette est lue dans sa description : si elle n&apos;y est pas, copiez-la et utilisez « Coller un texte ».
+          </p>
+        </form>
+      ) : mode === "texte" ? (
+        <form className="carte space-y-3 p-5" onSubmit={(e) => { e.preventDefault(); analyse(); }}>
+          <label className="block space-y-1">
+            <span className="etiquette">Texte de la recette</span>
+            <textarea className="champ" rows={10} required placeholder="Collez ici la recette : ingrédients, étapes…"
+              value={text} onChange={(e) => setText(e.target.value)} />
+          </label>
+          <button className="btn-primaire w-full" disabled={busy || text.trim().length < 20}>{busy ? "Lecture du texte…" : "Importer"}</button>
         </form>
       ) : (
         <div className="carte space-y-4 p-5">
