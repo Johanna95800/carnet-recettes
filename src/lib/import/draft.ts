@@ -16,6 +16,7 @@ export function toDraft(
     prep_minutes: pos(r.prep_minutes),
     cook_minutes: pos(r.cook_minutes),
     rest_minutes: pos(r.rest_minutes),
+    rest_label: r.rest_minutes ? r.rest_label : null,
     ingredients: r.ingredients,
     steps: r.steps,
     utensils: r.utensils,

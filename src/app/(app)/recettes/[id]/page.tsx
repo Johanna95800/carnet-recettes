@@ -6,6 +6,7 @@ import { categoryLabel, difficultyLabel, formatMinutes, type Recipe } from "@/li
 import { RecipeView } from "@/components/RecipeView";
 import { RecipeActions } from "@/components/RecipeActions";
 import { PhotoGallery } from "@/components/PhotoGallery";
+import { durationItems } from "@/components/Durations";
 
 export default async function RecettePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -33,19 +34,22 @@ export default async function RecettePage({ params }: { params: Promise<{ id: st
         {r.description && <p className="mt-2 text-encre-douce">{r.description}</p>}
 
         <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {[
-            ["Préparation", formatMinutes(r.prep_minutes)],
-            ["Cuisson", formatMinutes(r.cook_minutes)],
-            ["Repos", formatMinutes(r.rest_minutes)],
-            ["Total", formatMinutes(total)],
-            ["Difficulté", difficultyLabel(r.difficulty)],
-          ].filter(([, v]) => v).map(([k, v]) => (
-            <div key={k} className="carte px-3 py-2">
-              <dt className="text-xs text-encre-douce">{k}</dt>
-              <dd className="font-semibold">{v}</dd>
+          {durationItems(r).map((d) => (
+            <div key={d.label} className="carte px-3 py-2">
+              <dt className="text-xs text-encre-douce">{d.icon} {d.label}</dt>
+              <dd className="font-semibold">{d.value}</dd>
             </div>
           ))}
+          {difficultyLabel(r.difficulty) && (
+            <div className="carte px-3 py-2">
+              <dt className="text-xs text-encre-douce">📊 Difficulté</dt>
+              <dd className="font-semibold">{difficultyLabel(r.difficulty)}</dd>
+            </div>
+          )}
         </dl>
+        {total > 0 && durationItems(r).length > 1 && (
+          <p className="mt-2 text-sm text-encre-douce">Temps total : {formatMinutes(total)}</p>
+        )}
 
         <RecipeView recipe={r} />
 

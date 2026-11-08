@@ -34,9 +34,10 @@ export const ExtractedRecipeSchema = z.object({
   difficulty: z.enum(difficultyValues).nullable(),
   servings: z.number().nullable().describe("Nombre de personnes / parts"),
   servings_unit: z.string().nullable().describe("ex. 'personnes', 'parts', 'pièces', 'verrines'"),
-  prep_minutes: z.number().nullable(),
-  cook_minutes: z.number().nullable(),
-  rest_minutes: z.number().nullable().describe("Repos / réfrigération / levée"),
+  prep_minutes: z.number().nullable().describe("Temps de travail actif uniquement (éplucher, mélanger…), sans cuisson ni attente"),
+  cook_minutes: z.number().nullable().describe("Temps de cuisson (four, plaque…)"),
+  rest_minutes: z.number().nullable().describe("Temps d'attente sans intervention : repos, refroidissement, réfrigération, congélation, levée, marinade, trempage…"),
+  rest_label: z.string().nullable().describe("Nature du temps d'attente, un ou deux mots avec majuscule : 'Réfrigération', 'Refroidissement', 'Repos', 'Levée', 'Marinade', 'Congélation', 'Trempage'"),
   ingredients: z.array(
     z.object({
       quantity: z.number().nullable().describe("Valeur numérique (0.5 pour 1/2). null si 'une pincée', 'selon le goût'..."),
@@ -86,6 +87,7 @@ export interface Recipe {
   prep_minutes: number | null;
   cook_minutes: number | null;
   rest_minutes: number | null;
+  rest_label: string | null;
   ingredients: Ingredient[];
   steps: Step[];
   utensils: string[];
@@ -113,6 +115,7 @@ export function emptyDraft(): RecipeDraft {
     prep_minutes: null,
     cook_minutes: null,
     rest_minutes: null,
+    rest_label: null,
     ingredients: [],
     steps: [],
     utensils: [],
@@ -130,6 +133,21 @@ export function categoryLabel(c: string) {
 }
 export function difficultyLabel(d: string | null) {
   return DIFFICULTIES.find((x) => x.value === d)?.label ?? null;
+}
+
+export const REST_LABELS = ["Repos", "Refroidissement", "Réfrigération", "Congélation", "Levée", "Marinade", "Trempage", "Infusion"];
+
+/** Lit « 1h30 », « 12 h », « 45 », « 45 min » → minutes. */
+export function parseDuration(raw: string): number | null {
+  const s = raw.trim().toLowerCase().replace(",", ".");
+  if (!s) return null;
+  const h = s.match(/^(\d+(?:\.\d+)?)\s*h(?:eures?)?\s*(\d+)?\s*(?:min)?$/);
+  if (h) return Math.round(Number(h[1]) * 60 + Number(h[2] ?? 0));
+  const m = s.match(/^(\d+)\s*(?:min(?:utes?)?|mn)?$/);
+  if (m) return Number(m[1]);
+  const d = s.match(/^(\d+(?:\.\d+)?)\s*j(?:ours?)?$/);
+  if (d) return Math.round(Number(d[1]) * 1440);
+  return NaN;
 }
 
 export function formatMinutes(m: number | null | undefined) {

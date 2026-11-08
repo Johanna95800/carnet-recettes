@@ -2,16 +2,17 @@ import Link from "next/link";
 import { getSession } from "@/lib/supabase/server";
 import { signPhotos } from "@/lib/photos-server";
 import { RecipeList } from "@/components/RecipeList";
+import { durationItems } from "@/components/Durations";
 import type { Recipe } from "@/lib/types";
 
 export default async function Accueil() {
   const { supabase, family } = await getSession();
   const { data } = await supabase
     .from("recipes")
-    .select("id, title, category, difficulty, prep_minutes, cook_minutes, rest_minutes, tags, photos, ingredients, created_at")
+    .select("id, title, category, difficulty, prep_minutes, cook_minutes, rest_minutes, rest_label, tags, photos, ingredients, created_at")
     .eq("family_id", family!.id)
     .order("created_at", { ascending: false });
-  const recipes = (data ?? []) as Pick<Recipe, "id" | "title" | "category" | "difficulty" | "prep_minutes" | "cook_minutes" | "rest_minutes" | "tags" | "photos" | "ingredients" | "created_at">[];
+  const recipes = (data ?? []) as Pick<Recipe, "id" | "title" | "category" | "difficulty" | "prep_minutes" | "cook_minutes" | "rest_minutes" | "rest_label" | "tags" | "photos" | "ingredients" | "created_at">[];
   const urls = await signPhotos(supabase, recipes.map((r) => r.photos[0]));
 
   return (
@@ -34,7 +35,7 @@ export default async function Accueil() {
         <RecipeList
           recipes={recipes.map((r) => ({
             id: r.id, title: r.title, category: r.category, difficulty: r.difficulty, tags: r.tags,
-            totalMinutes: (r.prep_minutes ?? 0) + (r.cook_minutes ?? 0) + (r.rest_minutes ?? 0),
+            durations: durationItems(r).map((d) => `${d.icon} ${d.value}`),
             photo: r.photos[0] ? urls[r.photos[0]] ?? null : null,
             search: [r.title, ...r.tags, ...r.ingredients.map((i) => i.name)].join(" "),
           }))}

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { resizeImage } from "@/lib/image-client";
 import { PhotoEditor } from "./PhotoEditor";
-import { CATEGORIES, DIFFICULTIES, type Ingredient, type RecipeDraft } from "@/lib/types";
+import { CATEGORIES, DIFFICULTIES, REST_LABELS, formatMinutes, parseDuration, type Ingredient, type RecipeDraft } from "@/lib/types";
 
 const BUCKET = "recipe-photos";
 
@@ -181,12 +181,15 @@ export function RecipeForm({ initial, familyId, recipeId, onCancel }: Props) {
             </div>
           </label>
           <div />
-          {([["prep_minutes", "Préparation (min)"], ["cook_minutes", "Cuisson (min)"], ["rest_minutes", "Repos (min)"]] as const).map(([k, label]) => (
-            <label key={k} className="block space-y-1">
-              <span className="etiquette">{label}</span>
-              <input className="champ" inputMode="numeric" value={d[k] ?? ""} onChange={(e) => set(k, num(e.target.value))} />
-            </label>
-          ))}
+          <DurationField label="🔪 Préparation" value={d.prep_minutes} onChange={(v) => set("prep_minutes", v)} />
+          <DurationField label="🔥 Cuisson" value={d.cook_minutes} onChange={(v) => set("cook_minutes", v)} />
+          <label className="block space-y-1">
+            <span className="etiquette">⏳ Type d&apos;attente</span>
+            <input className="champ" list="rest-labels" placeholder="Repos, Réfrigération…" value={d.rest_label ?? ""}
+              onChange={(e) => set("rest_label", e.target.value || null)} />
+            <datalist id="rest-labels">{REST_LABELS.map((l) => <option key={l} value={l} />)}</datalist>
+          </label>
+          <DurationField label={`⏳ ${d.rest_label || "Attente"}`} value={d.rest_minutes} onChange={(v) => set("rest_minutes", v)} />
         </div>
       </section>
 
@@ -271,5 +274,24 @@ export function RecipeForm({ initial, familyId, recipeId, onCancel }: Props) {
         <button className="btn-primaire flex-[2]" disabled={busy || uploading}>{busy ? "Enregistrement…" : "Enregistrer la recette"}</button>
       </div>
     </form>
+  );
+}
+
+/** Champ de durée : accepte « 1h30 », « 12 h », « 45 »… */
+function DurationField({ label, value, onChange }: { label: string; value: number | null; onChange: (v: number | null) => void }) {
+  const [text, setText] = useState(value ? formatMinutes(value)! : "");
+  const [bad, setBad] = useState(false);
+  return (
+    <label className="block space-y-1">
+      <span className="etiquette">{label}</span>
+      <input className={`champ ${bad ? "border-tomate" : ""}`} placeholder="ex. 1h30 ou 45" value={text}
+        onChange={(e) => { setText(e.target.value); setBad(false); }}
+        onBlur={() => {
+          const v = parseDuration(text);
+          if (Number.isNaN(v)) { setBad(true); return; }
+          onChange(v || null);
+          setText(v ? formatMinutes(v)! : "");
+        }} />
+    </label>
   );
 }

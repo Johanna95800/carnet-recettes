@@ -12,7 +12,7 @@ Règles :
 - Recopie les étapes fidèlement, sans en inventer ; découpe-les en étapes courtes et claires, une action principale par étape. Ne numérote pas les étapes dans le texte.
 - Ingrédients : sépare quantité numérique, unité et nom (« 200 g de farine » → quantity 200, unit "g", name "farine"). Convertis les fractions (½ → 0.5). Pour « 3 œufs », unit est null.
 - Ustensiles : liste ceux cités ; si la source n'en cite pas, déduis le matériel indispensable des étapes (moule, saladier, fouet, four…).
-- Durées en minutes. Si elles ne sont pas indiquées, estime-les raisonnablement à partir des étapes.
+- Durées en minutes, bien séparées : prep_minutes = travail actif seulement ; cook_minutes = cuisson ; rest_minutes = attente sans intervention (refroidissement, réfrigération, levée, marinade…) avec sa nature dans rest_label. Ne mets JAMAIS un temps de refroidissement ou de repos dans la préparation. Si la source donne un « temps total », redécompose-le. Si les durées ne sont pas indiquées, estime-les à partir des étapes.
 - Difficulté : reprends celle de la source, sinon estime-la.
 - Catégorie : choisis la plus adaptée (apéritif, entrée, plat, accompagnement, dessert, boisson, sauce, petit-déjeuner, autre).
 - Écriture manuscrite difficile à lire : fais au mieux en t'aidant du contexte culinaire ; si un mot reste illisible, mets [?] à sa place.

@@ -42,6 +42,7 @@ create table public.recipes (
   prep_minutes int,
   cook_minutes int,
   rest_minutes int,
+  rest_label text,                  -- ex. "Réfrigération", "Levée", "Marinade"
   ingredients jsonb not null default '[]'::jsonb,  -- [{quantity, unit, name, note, group}]
   steps jsonb not null default '[]'::jsonb,        -- [{text, group}]
   utensils jsonb not null default '[]'::jsonb,     -- ["fouet", ...]

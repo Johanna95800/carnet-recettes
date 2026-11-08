@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { CATEGORIES, categoryLabel, difficultyLabel, formatMinutes } from "@/lib/types";
+import { CATEGORIES, categoryLabel, difficultyLabel } from "@/lib/types";
 
 export type RecipeCard = {
   id: string; title: string; category: string; difficulty: string | null; tags: string[];
-  totalMinutes: number; photo: string | null; search: string;
+  durations: string[]; photo: string | null; search: string;
 };
 
 const norm = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
@@ -51,8 +51,11 @@ export function RecipeList({ recipes }: { recipes: RecipeCard[] }) {
                 <div className="p-3">
                   <h2 className="line-clamp-2 font-semibold leading-snug">{r.title}</h2>
                   <p className="mt-1 text-xs text-encre-douce">
-                    {[c.label, formatMinutes(r.totalMinutes), difficultyLabel(r.difficulty)].filter(Boolean).join(" · ")}
+                    {[c.label, difficultyLabel(r.difficulty)].filter(Boolean).join(" · ")}
                   </p>
+                  {r.durations.length > 0 && (
+                    <p className="mt-0.5 text-xs text-encre-douce">{r.durations.join("  ")}</p>
+                  )}
                 </div>
               </Link>
             </li>
