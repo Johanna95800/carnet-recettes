@@ -2,6 +2,7 @@ import { getSession } from "@/lib/supabase/server";
 import { FamilySetup } from "@/components/FamilySetup";
 import { InviteCard, SignOutButton } from "@/components/FamilyActions";
 import { PreferredServings } from "@/components/PreferredServings";
+import { BackupButton } from "@/components/BackupButton";
 
 export default async function Famille() {
   const { supabase, user, family } = await getSession();
@@ -40,6 +41,7 @@ export default async function Famille() {
           ))}
         </ul>
       </section>
+      <BackupButton familyId={family.id} familyName={family.name} />
       <div className="text-center"><SignOutButton /></div>
     </main>
   );
